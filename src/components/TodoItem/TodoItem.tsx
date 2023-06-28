@@ -1,51 +1,53 @@
-import React, { useState, useEffect, useRef } from 'react';
-import CN from 'classnames';
-import { deleteTodo, patchTodo } from '../../api/todos';
-import { Todo, Update } from '../../types/Todo';
+import classNames from 'classnames';
+import {
+  FormEventHandler,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { deleteTodo, updateTodo } from '../../api/todos';
+import { useTodoContext } from '../../context/TodoContext';
+import { Todo, TodoUpdate } from '../../types/Todo';
 
-type Props = {
+interface Props {
   todo: Todo;
-  setTodos: React.Dispatch<React.SetStateAction<Todo[]>>;
-  setError: React.Dispatch<React.SetStateAction<string>>;
-  todoIdsInUpdating: number[],
-};
 
-export const TodoItem: React.FC<Props> = ({
-  todo,
-  setTodos,
-  setError,
-  todoIdsInUpdating,
-}) => {
+  isPermanentlyLoading?: boolean;
+}
+
+export const TodoItem: React.FC<Props> = ({ todo, isPermanentlyLoading }) => {
+  const { todoIdsInUpdating, setTodos, setError } = useTodoContext();
+
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [inputValue, setInputValue] = useState(todo.title);
+  const [isTitleEditing, setIsTitleEditing] = useState(false);
+
+  const [inputTitleValue, setInputTitleValue] = useState(todo.title);
 
   const isCurrentTodoInUpdating = todoIdsInUpdating.includes(todo.id);
 
-  const handleDelete = () => {
-    setIsDeleting(true);
+  const handleTodoDelete = () => {
+    setIsLoading(true);
 
     deleteTodo(todo.id)
       .then(() => {
         return setTodos((prevTodos: Todo[]) => {
-          return prevTodos.filter((curTodo) => curTodo.id !== todo.id);
+          return prevTodos.filter((currentTodo) => currentTodo.id !== todo.id);
         });
       })
       .catch(() => {
         setError('Unable to delete a todo');
       })
       .finally(() => {
-        setIsDeleting(false);
+        setIsLoading(false);
       });
   };
 
-  const handleEdit = (enteredInfo: Update) => {
+  const handleTodoEdit = (data: TodoUpdate) => {
     setIsLoading(true);
 
-    patchTodo(todo.id, enteredInfo)
+    updateTodo(todo.id, data)
       .then((updatedTodo: Todo) => {
         setTodos((prevTodos) => {
           const prevTodosCopy = [...prevTodos];
@@ -68,68 +70,67 @@ export const TodoItem: React.FC<Props> = ({
   };
 
   const handleTitleEdit = () => {
-    setIsEditing(false);
+    setIsTitleEditing(false);
 
-    if (inputValue === todo.title) {
+    if (inputTitleValue === todo.title) {
       return;
     }
 
-    if (inputValue) {
-      handleEdit({ title: inputValue });
+    if (inputTitleValue) {
+      handleTodoEdit({ title: inputTitleValue });
     } else {
-      handleDelete();
+      handleTodoDelete();
     }
   };
 
-  // eslint-disable-next-line
-  const handleEditingFormSubmit: React.FormEventHandler<HTMLFormElement> = (event) => {
+  const handleTitleEditSubmit: FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
     handleTitleEdit();
   };
 
   useEffect(() => {
-    if (isEditing) {
+    if (isTitleEditing) {
       inputRef.current?.focus();
     }
-  }, [isEditing]);
+  }, [isTitleEditing]);
 
   useEffect(() => {
-    const escapeHandlePress = (event: KeyboardEvent) => {
+    const handleEscapePress = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setInputValue(todo.title);
-        setIsEditing(false);
+        setInputTitleValue(todo.title);
+        setIsTitleEditing(false);
       }
     };
 
-    document.addEventListener('keyup', escapeHandlePress);
+    document.addEventListener('keyup', handleEscapePress);
 
     return () => {
-      document.removeEventListener('keyup', escapeHandlePress);
+      document.removeEventListener('keyup', handleEscapePress);
     };
   }, [todo]);
 
   return (
-    <div className={CN('todo', { completed: todo.completed })}>
+    <div className={classNames('todo', { completed: todo.completed })}>
       <label className="todo__status-label">
         <input
           type="checkbox"
           className="todo__status"
           checked={todo.completed}
           onChange={(event) => {
-            handleEdit({ completed: event.target.checked });
+            handleTodoEdit({ completed: event.target.checked });
           }}
           ref={inputRef}
         />
       </label>
 
-      {isEditing ? (
-        <form onSubmit={handleEditingFormSubmit}>
+      {isTitleEditing ? (
+        <form onSubmit={handleTitleEditSubmit}>
           <input
             type="text"
             className="todo__title-field"
-            value={inputValue}
-            onChange={(event) => setInputValue(event.target.value)}
+            value={inputTitleValue}
+            onChange={(event) => setInputTitleValue(event.target.value)}
             onBlur={handleTitleEdit}
             ref={inputRef}
           />
@@ -138,23 +139,26 @@ export const TodoItem: React.FC<Props> = ({
         <>
           <span
             className="todo__title"
-            onDoubleClick={() => setIsEditing(true)}
+            onDoubleClick={() => setIsTitleEditing(true)}
           >
             {todo.title}
           </span>
+
           <button
             type="button"
             className="todo__remove"
-            onClick={handleDelete}
+            onClick={handleTodoDelete}
           >
             ×
           </button>
         </>
       )}
 
-      <div className={CN('modal', 'overlay', {
-        'is-active': isCurrentTodoInUpdating || isDeleting || isLoading,
-      })}
+      <div
+        className={classNames('modal', 'overlay', {
+          'is-active':
+            isPermanentlyLoading || isLoading || isCurrentTodoInUpdating,
+        })}
       >
         <div className="modal-background has-background-white-ter" />
         <div className="loader" />

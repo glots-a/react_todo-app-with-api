@@ -5,7 +5,7 @@ export interface Todo {
   completed: boolean;
 }
 
-export interface Update {
+export interface TodoUpdate {
   completed?: boolean;
   title?: string;
 }

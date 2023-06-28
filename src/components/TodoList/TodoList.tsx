@@ -1,47 +1,29 @@
-import React from 'react';
-// eslint-disable-next-line
-import { v4 } from 'uuid';
+import { useTodoContext } from '../../context/TodoContext';
+import { Options } from '../../types/Options';
 import { TodoItem } from '../TodoItem/TodoItem';
-import { Todo } from '../../types/Todo';
 
-type Props = {
-  todos: Todo[];
-  tempoTodo: Todo | null;
-  setTodos: React.Dispatch<React.SetStateAction<Todo[]>>;
-  setError: React.Dispatch<React.SetStateAction<string>>;
-  todoIdsInUpdating: number[];
-};
+export const TodoList: React.FC = () => {
+  const { todos, status, tempTodo } = useTodoContext();
 
-export const TodoList: React.FC<Props> = ({
-  todos,
-  tempoTodo,
-  setTodos,
-  setError,
-  todoIdsInUpdating,
-}) => {
+  const visibleTodos = todos.filter((todo) => {
+    switch (status) {
+      case Options.ACTIVE:
+        return !todo.completed;
+
+      case Options.COMPLETED:
+        return todo.completed;
+
+      default:
+        return true;
+    }
+  });
+
   return (
-
     <section className="todoapp__main">
-      {todos.map(todo => {
-        return (
-          <TodoItem
-            todo={todo}
-            setTodos={setTodos}
-            setError={setError}
-            key={v4()}
-            todoIdsInUpdating={todoIdsInUpdating}
-          />
-        );
-      })}
-
-      {tempoTodo && (
-        <TodoItem
-          todo={tempoTodo}
-          setTodos={setTodos}
-          setError={setError}
-          todoIdsInUpdating={todoIdsInUpdating}
-        />
-      )}
+      {visibleTodos.map((todo) => (
+        <TodoItem todo={todo} key={todo.id} />
+      ))}
+      {tempTodo && <TodoItem todo={tempTodo} isPermanentlyLoading />}
     </section>
   );
 };
